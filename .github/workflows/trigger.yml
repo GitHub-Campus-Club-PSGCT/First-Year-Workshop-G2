@@ -1,0 +1,14 @@
+name: PR received
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PR opened — no checks configured, passing straight through."

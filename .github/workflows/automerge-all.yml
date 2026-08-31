@@ -1,0 +1,45 @@
+name: Auto-merge all PRs
+
+on:
+  workflow_run:
+    workflows: ["PR received"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  contents: write
+  actions: read
+
+jobs:
+  automerge:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find associated PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          PR_NUMBER=$(gh pr view \
+            "$HEAD_OWNER:$HEAD_BRANCH" \
+            --repo "$REPO" \
+            --json number \
+            --jq '.number')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "::error::No associated PR found."
+            exit 1
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ steps.pr.outputs.number }}" \
+            --repo "${{ github.repository }}" \
+            --squash
